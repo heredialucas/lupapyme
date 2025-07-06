@@ -13,7 +13,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@repo/design-system/hooks/use-toast';
 import { User, Mail, Plus, Edit, Trash2, AlertCircle } from 'lucide-react';
 import type { UserData } from '@repo/data-services/src/types/user';
-import { UserRole } from '@repo/database';
 import type { Dictionary } from '@repo/internationalization';
 import { createUser, updateUser, deleteUser } from '../actions';
 
@@ -35,7 +34,7 @@ export function UsersSection({ users, currentUser, dictionary }: UsersSectionPro
         lastName: '',
         email: '',
         password: '',
-        role: 'user' as UserRole,
+        role: 'user' as string,
         permissions: [] as string[],
     });
 
@@ -59,7 +58,7 @@ export function UsersSection({ users, currentUser, dictionary }: UsersSectionPro
             lastName: user.lastName,
             email: user.email,
             password: '',
-            role: user.role as UserRole,
+            role: user.role as string,
             permissions: user.permissions || [],
         });
         setIsUserDialogOpen(true);
@@ -282,7 +281,7 @@ export function UsersSection({ users, currentUser, dictionary }: UsersSectionPro
                             <Label htmlFor="user-role">Rol</Label>
                             <Select
                                 value={userForm.role}
-                                onValueChange={(value: UserRole) => setUserForm(prev => ({ ...prev, role: value }))}
+                                onValueChange={(value: string) => setUserForm(prev => ({ ...prev, role: value }))}
                                 disabled={isPending}
                             >
                                 <SelectTrigger>

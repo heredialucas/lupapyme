@@ -1,242 +1,320 @@
 'use client';
 
 import { type ColumnDef, type CellContext } from '@tanstack/react-table';
-import type { Order } from '@repo/data-services/src/types/barfer';
 import { Badge } from '@repo/design-system/components/ui/badge';
 import { Input } from '@repo/design-system/components/ui/input';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
-const statusTranslations: Record<Order['status'], string> = {
-    pending: 'Pendiente',
-    confirmed: 'Confirmado',
-    delivered: 'Entregado',
-    cancelled: 'Cancelado',
+// Tipo genérico para los registros dinámicos
+export interface Registro {
+    id: string;
+    [key: string]: any;
+}
+
+export interface CampoDef {
+    name: string;
+    label: string;
+    type: string;
+    required?: boolean;
+    order?: number;
+    options?: string[];
+}
+
+// Renderizadores dinámicos basados en el tipo de campo
+export const getFieldRenderer = (campo: CampoDef, fieldIndex: number) => {
+    const { type, name } = campo;
+
+    return ({ row }: CellContext<Registro, unknown>) => {
+        const value = getNestedValue(row.original, name);
+
+        switch (type) {
+            case 'date':
+                return renderDateField(value);
+            case 'number':
+                return renderNumberField(value);
+            case 'boolean':
+                return renderBooleanField(value);
+            case 'email':
+                return renderEmailField(value);
+            case 'phone':
+                return renderPhoneField(value);
+            case 'url':
+                return renderUrlField(value);
+            case 'textarea':
+                return renderTextareaField(value);
+            case 'select':
+                return renderSelectField(value);
+            case 'string':
+            case 'text':
+            default:
+                return renderStringField(value);
+        }
+    };
 };
 
-const paymentMethodTranslations: Record<string, string> = {
-    cash: 'Efectivo',
-    transfer: 'Transferencia',
-    'bank-transfer': 'Transferencia Bancaria',
-    'mercado-pago': 'Mercado Pago',
-};
+// Utilidad para acceder a valores del array de datos según el campo
+function getNestedValue(obj: any, fieldName: string) {
+    // Si los datos están en formato array, mapear por índice
+    if (Array.isArray(obj.data)) {
+        // Buscar el índice del campo en la definición del modelo
+        // Por ahora, asumimos que el orden de los campos coincide con el orden del array
+        const fieldIndex = parseInt(fieldName) || 0;
+        return obj.data[fieldIndex];
+    }
 
-export const columns: ColumnDef<Order>[] = [
-    {
-        accessorKey: 'orderType',
-        header: 'Tipo Orden',
-        cell: ({ row }: CellContext<Order, unknown>) => {
-            const orderType = row.getValue('orderType') as Order['orderType'];
-            const isWholesale = orderType === 'mayorista';
-            return (
-                <Badge
-                    variant={isWholesale ? 'destructive' : 'secondary'}
-                    className="text-xs"
-                >
-                    {orderType === 'mayorista' ? 'Mayorista' : 'Minorista'}
-                </Badge>
-            );
-        }
-    },
-    {
-        id: 'deliveryDay',
-        header: 'Fecha',
-        cell: ({ row }: CellContext<Order, unknown>) => {
-            const deliveryDay = row.original.deliveryDay;
-            if (!deliveryDay) {
-                return <div className="w-full text-center text-sm">--</div>;
-            }
-            const date = new Date(deliveryDay);
-            const formatted = date.toLocaleDateString('es-AR', {
-                day: '2-digit',
-                month: 'short',
-            }).replace('.', '').replace(/\s/g, '-');
-            // Colores por día de la semana
-            const day = date.getDay();
-            let bgColor = '';
-            switch (day) {
-                case 1: // Lunes
-                    bgColor = 'bg-green-100';
-                    break;
-                case 2: // Martes
-                    bgColor = 'bg-yellow-100';
-                    break;
-                case 3: // Miércoles
-                    bgColor = 'bg-red-100';
-                    break;
-                case 4: // Jueves
-                    bgColor = 'bg-yellow-600';
-                    break;
-                case 6: // Sábado
-                    bgColor = 'bg-blue-100';
-                    break;
-                default:
-                    bgColor = '';
-            }
-            return (
-                <div className={`flex h-full w-full items-center justify-center text-center ${bgColor} rounded-sm`} style={{ minWidth: 60, maxWidth: 70 }}>
-                    <span className="font-semibold">
-                        {formatted}
-                    </span>
-                </div>
-            );
-        },
-        size: 70, // Más angosto
-        minSize: 60,
-        maxSize: 80,
-    },
-    {
-        accessorKey: 'deliveryArea.schedule',
-        header: 'Rango Horario',
-        cell: ({ row }: CellContext<Order, unknown>) => {
-            const deliveryArea = row.original.deliveryArea;
-            if (!deliveryArea?.schedule) return <div className="min-w-[90px] text-sm">N/A</div>;
+    // Si los datos están en formato objeto, acceder normalmente
+    if (obj.data && typeof obj.data === 'object' && !Array.isArray(obj.data)) {
+        return obj.data[fieldName];
+    }
 
-            // Extraer solo las horas del schedule
-            const schedule = deliveryArea.schedule;
-            // Buscar patrones de horas como "10hs", "17hs", "10:00", etc.
-            const hourMatches = schedule.match(/(\d{1,2})(?::\d{2})?(?:hs?)?/g);
+    // Si el objeto ya está aplanado (sin .data), acceder directamente
+    if (obj[fieldName] !== undefined) {
+        return obj[fieldName];
+    }
 
-            if (hourMatches && hourMatches.length >= 2) {
-                const startHour = hourMatches[0].replace(/[^\d]/g, '');
-                const endHour = hourMatches[hourMatches.length - 1].replace(/[^\d]/g, '');
-                return <div className="min-w-[90px] text-sm whitespace-normal break-words">De {startHour} a {endHour}hs aprox</div>;
-            }
+    // Fallback: intentar acceder al campo en .data
+    return obj.data?.[fieldName];
+}
 
-            // Si no se puede extraer, mostrar el schedule original pero más corto
-            return <div className="min-w-[90px] text-sm whitespace-normal break-words">{schedule.length > 20 ? schedule.substring(0, 20) + '...' : schedule}</div>;
-        }
-    },
-    {
-        accessorKey: 'notesOwn',
-        header: 'Notas propias',
-        cell: ({ row }: CellContext<Order, unknown>) => {
-            const notesOwn = row.original.notesOwn || '';
-            return <div className="min-w-[100px] text-sm">{notesOwn}</div>;
-        }
-        // cell: ({ row }: CellContext<Order, unknown>) => {
-        //     return (
-        //         <Input
-        //             placeholder="Nota..."
-        //             className="min-w-[100px] h-7 text-xs"
-        //             defaultValue=""
-        //         />
-        //     );
-        // }
-    },
-    {
-        accessorKey: 'user.name',
-        header: 'Cliente',
-        cell: ({ row }: CellContext<Order, unknown>) => {
-            const user = row.original.user || '';
-            return <div className="min-w-[120px] text-sm whitespace-normal break-words">{user.name} {user.lastName}</div>;
-        },
-    },
-    {
-        accessorKey: 'address.address',
-        header: 'Dirección',
-        cell: ({ row }: CellContext<Order, unknown>) => {
-            const address = row.original.address as Order['address'];
-            return <div className="min-w-[40px] text-sm whitespace-normal break-words">{address ? `${address.address}, ${address.city}` : 'N/A'}</div>;
-        }
-    },
-    {
-        accessorKey: 'address.phone',
-        header: 'Teléfono',
-        cell: ({ row }: CellContext<Order, unknown>) => {
-            const address = row.original.address as Order['address'];
-            return <div className="min-w-[10px] text-sm">{address ? address.phone : 'N/A'}</div>;
-        }
-    },
-    {
-        accessorKey: 'items',
-        header: 'Productos',
-        enableSorting: false,
-        cell: ({ row }: CellContext<Order, unknown>) => {
-            const items = row.original.items as Order['items'];
-            return (
-                <div className="min-w-[120px] text-sm whitespace-normal break-words">
-                    {items.map((item, index) => (
-                        <div key={`${item.id}-${index}`}>{item.name} x{(item.options[0] as any)?.quantity || 1}</div>
-                    ))}
-                </div>
-            );
-        }
-    },
-    {
-        accessorKey: 'paymentMethod',
-        header: 'Medio de pago',
-        cell: ({ row }: CellContext<Order, unknown>) => {
-            const paymentMethod = row.original.paymentMethod || '';
-            const translatedPaymentMethod = paymentMethodTranslations[paymentMethod.toLowerCase()] || paymentMethod;
-            return <div className="min-w-[100px] text-sm">{translatedPaymentMethod}</div>;
-        }
-    },
-    {
-        accessorKey: 'status',
-        header: 'Estado',
-        cell: ({ row }: CellContext<Order, unknown>) => {
-            const status = row.getValue('status') as Order['status'];
-            const translatedStatus = statusTranslations[status] || status;
-            const paymentMethod = row.original.paymentMethod;
-            let colorClass = '';
-            if (status === 'pending' && paymentMethod !== 'cash') colorClass = 'bg-red-100 force-dark-black text-red-900';
-            if (status === 'confirmed') colorClass = 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300';
-            return (
-                <span className={`text-xs px-2 py-1 rounded ${colorClass}`}>
-                    {translatedStatus}
-                </span>
-            );
-        }
-    },
-    {
-        accessorKey: 'total',
-        header: () => <div className="w-full text-center">Total</div>,
-        cell: ({ row }: CellContext<Order, unknown>) => {
-            const amount = parseFloat(row.getValue('total') as string);
-            const rounded = Math.round(amount);
-            const formatted = new Intl.NumberFormat('es-AR', {
-                style: 'currency',
-                currency: 'ARS',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0,
-            }).format(rounded);
-            return <div className="font-medium text-center min-w-[80px] text-sm">{formatted}</div>;
-        }
-    },
-    {
-        accessorKey: 'notes',
-        header: 'Notas',
-        cell: ({ row }: CellContext<Order, unknown>) => {
-            const address = row.original.address as Order['address'];
-            const notes = row.original.notes || '';
+// Renderizadores específicos por tipo
+function renderStringField(value: any) {
+    return (
+        <div className="min-w-[80px] text-sm whitespace-normal break-words">
+            {value || '--'}
+        </div>
+    );
+}
 
-            let addressInfo = '';
-            if (address) {
-                const parts = [];
-                if (address.betweenStreets) parts.push(`Entre: ${address.betweenStreets}`);
-                if (address.floorNumber) parts.push(`Piso: ${address.floorNumber}`);
-                if (address.departmentNumber) parts.push(`Depto: ${address.departmentNumber}`);
-                addressInfo = parts.join(' | ');
-            }
+function renderNumberField(value: any) {
+    if (value === null || value === undefined) {
+        return <div className="min-w-[80px] text-sm text-center">--</div>;
+    }
 
-            const allNotes = [notes, addressInfo].filter(Boolean).join(' | ');
-            return <div className="min-w-[120px] text-sm whitespace-normal break-words">{allNotes || 'N/A'}</div>;
+    const numValue = parseFloat(value);
+    if (isNaN(numValue)) {
+        return <div className="min-w-[80px] text-sm text-center">--</div>;
+    }
+
+    const formatted = new Intl.NumberFormat('es-AR', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    }).format(numValue);
+
+    return (
+        <div className="min-w-[80px] text-sm text-center font-medium">
+            {formatted}
+        </div>
+    );
+}
+
+function renderDateField(value: any) {
+    if (!value) {
+        return <div className="min-w-[80px] text-sm text-center">--</div>;
+    }
+
+    try {
+        const date = new Date(value);
+        const formatted = format(date, 'dd/MM/yyyy', { locale: es });
+
+        // Colores por día de la semana
+        const day = date.getDay();
+        let bgColor = '';
+        switch (day) {
+            case 1: // Lunes
+                bgColor = 'bg-green-100';
+                break;
+            case 2: // Martes
+                bgColor = 'bg-yellow-100';
+                break;
+            case 3: // Miércoles
+                bgColor = 'bg-red-100';
+                break;
+            case 4: // Jueves
+                bgColor = 'bg-yellow-600';
+                break;
+            case 6: // Sábado
+                bgColor = 'bg-blue-100';
+                break;
+            default:
+                bgColor = '';
         }
-    },
-    {
-        accessorKey: 'user.email',
-        header: 'Mail',
-        cell: ({ row }: CellContext<Order, unknown>) => {
-            if ((row as any).isEditing) {
-                return (
-                    <Input
-                        value={row.original.user?.email || ''}
-                        className="min-w-[10px] text-xs"
-                        readOnly
-                    />
-                );
-            }
-            const user = row.original.user as Order['user'];
-            return <div className="min-w-[10px] text-sm whitespace-normal break-words">{user ? user.email : 'N/A'}</div>;
-        }
-    },
-]; 
+
+        return (
+            <div className={`min-w-[80px] text-sm text-center ${bgColor} rounded-sm p-1`}>
+                {formatted}
+            </div>
+        );
+    } catch {
+        return <div className="min-w-[80px] text-sm text-center">--</div>;
+    }
+}
+
+function renderBooleanField(value: any) {
+    const boolValue = Boolean(value);
+    return (
+        <div className="min-w-[60px] text-center">
+            <Badge variant={boolValue ? 'default' : 'secondary'} className="text-xs">
+                {boolValue ? 'Sí' : 'No'}
+            </Badge>
+        </div>
+    );
+}
+
+function renderEmailField(value: any) {
+    if (!value) {
+        return <div className="min-w-[120px] text-sm">--</div>;
+    }
+
+    return (
+        <div className="min-w-[120px] text-sm whitespace-normal break-words">
+            <a href={`mailto:${value}`} className="text-blue-600 hover:text-blue-800">
+                {value}
+            </a>
+        </div>
+    );
+}
+
+function renderPhoneField(value: any) {
+    if (!value) {
+        return <div className="min-w-[100px] text-sm">--</div>;
+    }
+
+    return (
+        <div className="min-w-[100px] text-sm">
+            <a href={`tel:${value}`} className="text-blue-600 hover:text-blue-800">
+                {value}
+            </a>
+        </div>
+    );
+}
+
+function renderUrlField(value: any) {
+    if (!value) {
+        return <div className="min-w-[120px] text-sm">--</div>;
+    }
+
+    return (
+        <div className="min-w-[120px] text-sm whitespace-normal break-words">
+            <a
+                href={value.startsWith('http') ? value : `https://${value}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800"
+            >
+                {value.length > 30 ? value.substring(0, 30) + '...' : value}
+            </a>
+        </div>
+    );
+}
+
+function renderTextareaField(value: any) {
+    if (!value) {
+        return <div className="min-w-[120px] text-sm">--</div>;
+    }
+
+    return (
+        <div className="min-w-[120px] text-sm whitespace-normal break-words max-h-20 overflow-y-auto">
+            {value}
+        </div>
+    );
+}
+
+function renderSelectField(value: any) {
+    if (!value) {
+        return <div className="min-w-[80px] text-sm">--</div>;
+    }
+
+    return (
+        <div className="min-w-[80px] text-sm">
+            <Badge variant="outline" className="text-xs">
+                {value}
+            </Badge>
+        </div>
+    );
+}
+
+// Generador de columnas completamente dinámico
+export function getColumns(campos: CampoDef[]): ColumnDef<Registro>[] {
+    return campos.map((campo, index) => ({
+        accessorKey: campo.name,
+        header: campo.label,
+        cell: getFieldRenderer(campo, index),
+        size: getColumnSize(campo.type),
+        minSize: getMinColumnSize(campo.type),
+        maxSize: getMaxColumnSize(campo.type),
+    }));
+}
+
+// Funciones para determinar tamaños de columnas según el tipo
+function getColumnSize(tipo: string): number {
+    switch (tipo) {
+        case 'date':
+            return 100;
+        case 'number':
+            return 80;
+        case 'boolean':
+            return 60;
+        case 'email':
+            return 150;
+        case 'phone':
+            return 120;
+        case 'url':
+            return 150;
+        case 'textarea':
+            return 200;
+        case 'select':
+            return 100;
+        case 'string':
+        default:
+            return 120;
+    }
+}
+
+function getMinColumnSize(tipo: string): number {
+    switch (tipo) {
+        case 'date':
+            return 80;
+        case 'number':
+            return 60;
+        case 'boolean':
+            return 50;
+        case 'email':
+            return 120;
+        case 'phone':
+            return 100;
+        case 'url':
+            return 120;
+        case 'textarea':
+            return 150;
+        case 'select':
+            return 80;
+        case 'string':
+        default:
+            return 100;
+    }
+}
+
+function getMaxColumnSize(tipo: string): number {
+    switch (tipo) {
+        case 'date':
+            return 120;
+        case 'number':
+            return 100;
+        case 'boolean':
+            return 80;
+        case 'email':
+            return 200;
+        case 'phone':
+            return 150;
+        case 'url':
+            return 250;
+        case 'textarea':
+            return 400;
+        case 'select':
+            return 150;
+        case 'string':
+        default:
+            return 200;
+    }
+} 

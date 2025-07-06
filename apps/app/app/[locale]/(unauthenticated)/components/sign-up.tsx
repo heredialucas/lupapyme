@@ -31,7 +31,8 @@ async function handleSignUp(formData: FormData) {
             name,
             lastName,
             email,
-            password
+            password,
+            tenantId: 'tenant-a',
         });
 
         if (result.success) {

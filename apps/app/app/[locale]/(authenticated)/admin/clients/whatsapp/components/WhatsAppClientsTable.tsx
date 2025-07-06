@@ -15,9 +15,17 @@ import {
 } from '@repo/design-system/components/ui/table';
 import { Search, MessageCircle, Phone } from 'lucide-react';
 import type { Dictionary } from '@repo/internationalization';
-import type { ClientForTable } from '@repo/data-services/src/services/barfer/analytics/getClientsByCategory';
 
-interface Client extends ClientForTable { }
+// Definir tipo local dinámico para los clientes
+interface Client {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    lastOrder: string;
+    totalSpent: number;
+    // ...otros campos que uses
+}
 
 interface WhatsAppClientsTableProps {
     clients: Client[];

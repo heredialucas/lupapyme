@@ -1,10 +1,21 @@
 'use server';
 
 import { TemplateSelectorClient } from './TemplateSelectorClient';
-import { createEmailTemplate, deleteEmailTemplate } from '@repo/data-services';
 import { getCurrentUser } from '@repo/auth/server';
 import { revalidatePath } from 'next/cache';
-import type { EmailTemplateData } from '@repo/data-services';
+
+// Tipos temporales hasta que se implementen los nuevos servicios
+interface EmailTemplateData {
+    id: string;
+    name: string;
+    subject: string;
+    content: string;
+    description?: string;
+    isDefault: boolean;
+    createdBy: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
 
 interface TemplateSelectorServerProps {
     templates: EmailTemplateData[];
@@ -21,51 +32,15 @@ interface TemplateSelectorServerProps {
 
 export async function TemplateSelectorServer(props: TemplateSelectorServerProps) {
     const handleCreateTemplate = async (name: string, subject: string, content: string, description?: string) => {
-
-        try {
-            const user = await getCurrentUser();
-            if (!user) {
-                return { success: false, error: 'Usuario no autenticado' };
-            }
-
-            await createEmailTemplate(user.id, {
-                name,
-                subject,
-                content,
-                description,
-                isDefault: false
-            });
-
-            revalidatePath('/admin/clients/email');
-            return { success: true };
-        } catch (error) {
-            console.error('Error al crear template de email:', error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : 'Error desconocido'
-            };
-        }
+        // TODO: Implementar con el nuevo modelo de base de datos
+        console.warn('createEmailTemplate no implementado - migración en progreso');
+        return { success: false, error: 'Funcionalidad temporalmente no disponible durante la migración' };
     };
 
     const handleDeleteTemplate = async (templateId: string) => {
-
-        try {
-            const user = await getCurrentUser();
-            if (!user) {
-                return { success: false, error: 'Usuario no autenticado' };
-            }
-
-            await deleteEmailTemplate(templateId, user.id);
-
-            revalidatePath('/admin/clients/email');
-            return { success: true };
-        } catch (error) {
-            console.error('Error al eliminar template de email:', error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : 'Error desconocido'
-            };
-        }
+        // TODO: Implementar con el nuevo modelo de base de datos
+        console.warn('deleteEmailTemplate no implementado - migración en progreso');
+        return { success: false, error: 'Funcionalidad temporalmente no disponible durante la migración' };
     };
 
     return (

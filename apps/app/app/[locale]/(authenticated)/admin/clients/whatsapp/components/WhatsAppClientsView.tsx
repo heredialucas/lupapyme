@@ -8,17 +8,26 @@ import { Badge } from '@repo/design-system/components/ui/badge';
 import { ArrowLeft, MessageCircle, Send, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Dictionary } from '@repo/internationalization';
-import type { ClientForTable } from '@repo/data-services/src/services/barfer/analytics/getClientsByCategory';
-import type { WhatsAppTemplateData } from '@repo/data-services';
 import { WhatsAppClientsTable } from './WhatsAppClientsTable';
 import { WhatsAppTemplateSelectorClient } from './WhatsAppTemplateSelectorClient';
+
+// Definir tipo local dinámico para los clientes
+interface Client {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    lastOrder: string;
+    totalSpent: number;
+    // ...otros campos que uses
+}
 
 interface WhatsAppClientsViewProps {
     category?: string;
     type?: string;
     dictionary: Dictionary;
-    clients: ClientForTable[];
-    whatsappTemplates: WhatsAppTemplateData[];
+    clients: Client[];
+    whatsappTemplates: any[]; // O usa el tipo correcto si es global
 }
 
 // Función para traducir categorías de comportamiento

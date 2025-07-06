@@ -1,69 +1,68 @@
-import { getProductSales, getProductTimeline } from '@repo/data-services/src/services/barfer';
-import { ProductsAnalyticsClient } from './ProductsAnalyticsClient';
+"use client";
+import { useState } from 'react';
 
-interface ProductsAnalyticsTabProps {
-    dateFilter: {
-        from: Date;
-        to: Date;
-    };
-    compareFilter?: {
-        from: Date;
-        to: Date;
-    };
+interface CampoDef {
+    nombre: string;
+    tipo: string;
 }
 
-export async function ProductsAnalyticsTab({ dateFilter, compareFilter }: ProductsAnalyticsTabProps) {
-    try {
-        const [
-            allProducts,
-            pendingProducts,
-            confirmedProducts,
-        ] = await Promise.all([
-            getProductSales('all', 20, dateFilter.from, dateFilter.to),
-            getProductSales('pending', 20, dateFilter.from, dateFilter.to),
-            getProductSales('confirmed', 20, dateFilter.from, dateFilter.to),
-        ]);
+interface Registro {
+    id: string;
+    data: Record<string, any>;
+}
 
-        const productIds = Array.from(new Set(allProducts.map(p => p.productId)));
+interface ProductsAnalyticsTabProps {
+    modelDefinition: {
+        tipo: string;
+        campos: CampoDef[];
+    };
+    registros: Registro[];
+}
 
-        const timelineData = await getProductTimeline(dateFilter.from, dateFilter.to, productIds);
+export function ProductsAnalyticsTab({ modelDefinition, registros }: ProductsAnalyticsTabProps) {
+    // Buscar un campo que sea producto/product/producto, si existe, si no usar el primero
+    const campoProducto = modelDefinition.campos.find(c => c.nombre.toLowerCase().includes('producto') || c.nombre.toLowerCase().includes('product'))?.nombre || modelDefinition.campos[0]?.nombre || '';
+    const [campoSeleccionado, setCampoSeleccionado] = useState<string>(campoProducto);
 
-        let compareAllProducts, comparePendingProducts, compareConfirmedProducts, compareTimelineData;
-        if (compareFilter) {
-            [
-                compareAllProducts,
-                comparePendingProducts,
-                compareConfirmedProducts,
-            ] = await Promise.all([
-                getProductSales('all', 20, compareFilter.from, compareFilter.to),
-                getProductSales('pending', 20, compareFilter.from, compareFilter.to),
-                getProductSales('confirmed', 20, compareFilter.from, compareFilter.to),
-            ]);
-            const compareProductIds = Array.from(new Set(compareAllProducts.map(p => p.productId)));
-            compareTimelineData = await getProductTimeline(compareFilter.from, compareFilter.to, compareProductIds);
-        }
+    // Agrupar registros por el campo seleccionado
+    const agrupados = registros.reduce((acc: Record<string, number>, reg) => {
+        const valor = reg.data[campoSeleccionado] ?? 'Sin valor';
+        acc[valor] = acc[valor] ? acc[valor] + 1 : 1;
+        return acc;
+    }, {});
 
-        return (
-            <ProductsAnalyticsClient
-                allProducts={allProducts}
-                pendingProducts={pendingProducts}
-                confirmedProducts={confirmedProducts}
-                compareAllProducts={compareAllProducts}
-                comparePendingProducts={comparePendingProducts}
-                compareConfirmedProducts={compareConfirmedProducts}
-                timelineData={timelineData}
-                compareTimelineData={compareTimelineData}
-                isComparing={!!compareFilter}
-                dateFilter={dateFilter}
-                compareFilter={compareFilter}
-            />
-        );
-    } catch (error) {
-        console.error('Error loading products analytics:', error);
-        return (
-            <div className="p-4 border rounded-lg">
-                <p className="text-sm text-red-600">Error al cargar datos de productos</p>
-            </div>
-        );
-    }
+    return (
+        <div className="p-4 border rounded-lg">
+            <h2 className="text-lg font-bold mb-4">Analítica dinámica de productos</h2>
+            <label className="block mb-2">Selecciona campo para analizar:</label>
+            <select
+                className="mb-4 p-2 border rounded"
+                value={campoSeleccionado}
+                onChange={e => setCampoSeleccionado(e.target.value)}
+            >
+                {modelDefinition.campos.map(campo => (
+                    <option key={campo.nombre} value={campo.nombre}>
+                        {campo.nombre}
+                    </option>
+                ))}
+            </select>
+            <table className="min-w-full border mt-4">
+                <thead>
+                    <tr>
+                        <th className="border px-4 py-2">Valor</th>
+                        <th className="border px-4 py-2">Cantidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {Object.entries(agrupados).map(([valor, cantidad]) => (
+                        <tr key={valor}>
+                            <td className="border px-4 py-2">{valor}</td>
+                            <td className="border px-4 py-2">{cantidad}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+            {/* Aquí puedes agregar un gráfico dinámico usando los datos agrupados */}
+        </div>
+    );
 } 

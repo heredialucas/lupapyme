@@ -15,9 +15,17 @@ import {
 } from '@repo/design-system/components/ui/table';
 import { Search, Mail } from 'lucide-react';
 import type { Dictionary } from '@repo/internationalization';
-import type { ClientForTable } from '@repo/data-services/src/services/barfer/analytics/getClientsByCategory';
 
-interface Client extends ClientForTable { }
+// Definir tipo local dinámico para los clientes de la tabla
+interface Client {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    lastOrder: string;
+    totalSpent: number;
+    // Agrega aquí otros campos que realmente uses en la tabla
+}
 
 interface ClientsTableProps {
     clients: Client[];

@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@repo/design-system/components/ui/tabs';
 import type { Dictionary } from '@repo/internationalization';
-import type { ClientAnalytics, ClientBehaviorCategory, ClientSpendingCategory } from '@repo/data-services';
 import { ClientCategoryCard } from './ClientCategoryCard';
 import { ClientStatsGrid } from './ClientStatsGrid';
+import type { ClientAnalytics, ClientCategory } from '@repo/data-services/src/services/lupapyme/clientAnalyticsService';
 
 interface ClientsManagementProps {
     analytics: ClientAnalytics;
@@ -16,26 +16,34 @@ export function ClientsManagement({
     analytics,
     dictionary
 }: ClientsManagementProps) {
-    const [activeTab, setActiveTab] = useState('behavior');
+    const [activeTab, setActiveTab] = useState('frequency');
 
-    const spendingOrder: ClientSpendingCategory[] = ['premium', 'standard', 'basic'];
-
-    const behaviorOrder: ClientBehaviorCategory[] = [
-        'active',
-        'recovered',
-        'new',
-        'tracking',
-        'possible-inactive',
-        'lost'
-    ];
-
-    const sortedSpendingCategories = [...analytics.spendingCategories].sort(
-        (a, b) => spendingOrder.indexOf(a.category as ClientSpendingCategory) - spendingOrder.indexOf(b.category as ClientSpendingCategory)
+    // Separar categorías por tipo
+    const frequencyCategories = analytics.categories.filter(cat =>
+        ['new', 'regular', 'loyal'].includes(cat.category)
     );
 
-    const sortedBehaviorCategories = [...analytics.behaviorCategories].sort(
-        (a, b) => behaviorOrder.indexOf(a.category as ClientBehaviorCategory) - behaviorOrder.indexOf(b.category as ClientBehaviorCategory)
+    const valueCategories = analytics.categories.filter(cat =>
+        ['low', 'medium', 'high'].includes(cat.category)
     );
+
+    const activityCategories = analytics.categories.filter(cat =>
+        ['active', 'inactive', 'lost'].includes(cat.category)
+    );
+
+    // Ordenar categorías
+    const orderMap = {
+        new: 1, regular: 2, loyal: 3,
+        low: 1, medium: 2, high: 3,
+        active: 1, inactive: 2, lost: 3
+    };
+
+    const sortCategories = (categories: ClientCategory[]) =>
+        categories.sort((a, b) => (orderMap[a.category as keyof typeof orderMap] || 0) - (orderMap[b.category as keyof typeof orderMap] || 0));
+
+    const sortedFrequencyCategories = sortCategories(frequencyCategories);
+    const sortedValueCategories = sortCategories(valueCategories);
+    const sortedActivityCategories = sortCategories(activityCategories);
 
     return (
         <div className="space-y-6 p-4 sm:p-6">
@@ -57,51 +65,75 @@ export function ClientsManagement({
 
             {/* Categories Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 h-auto min-h-[40px] sm:h-11">
+                <TabsList className="grid w-full grid-cols-3 h-auto min-h-[40px] sm:h-11">
                     <TabsTrigger
-                        value="behavior"
+                        value="frequency"
                         className="text-[10px] xs:text-xs sm:text-sm px-1 sm:px-3 py-2 leading-tight"
                     >
                         <span className="hidden xs:inline">
-                            {dictionary.app.admin.clients.categories.behaviorTitle}
+                            Por Frecuencia de Compra
                         </span>
                         <span className="xs:hidden">
-                            Comportamiento
+                            Frecuencia
                         </span>
                     </TabsTrigger>
                     <TabsTrigger
-                        value="spending"
+                        value="value"
                         className="text-[10px] xs:text-xs sm:text-sm px-1 sm:px-3 py-2 leading-tight"
                     >
                         <span className="hidden xs:inline">
-                            {dictionary.app.admin.clients.categories.spendingTitle}
+                            Por Valor de Compra
                         </span>
                         <span className="xs:hidden">
-                            Gasto
+                            Valor
+                        </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="activity"
+                        className="text-[10px] xs:text-xs sm:text-sm px-1 sm:px-3 py-2 leading-tight"
+                    >
+                        <span className="hidden xs:inline">
+                            Por Actividad Reciente
+                        </span>
+                        <span className="xs:hidden">
+                            Actividad
                         </span>
                     </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="behavior" className="mt-6">
+                <TabsContent value="frequency" className="mt-6">
                     <div className="grid gap-3 sm:gap-4 grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                        {sortedBehaviorCategories.map((category) => (
+                        {sortedFrequencyCategories.map((category) => (
                             <ClientCategoryCard
                                 key={category.category}
                                 category={category}
-                                type="behavior"
+                                type="frequency"
                                 dictionary={dictionary}
                             />
                         ))}
                     </div>
                 </TabsContent>
 
-                <TabsContent value="spending" className="mt-6">
+                <TabsContent value="value" className="mt-6">
                     <div className="grid gap-3 sm:gap-4 grid-cols-1 xs:grid-cols-2 lg:grid-cols-3">
-                        {sortedSpendingCategories.map((category) => (
+                        {sortedValueCategories.map((category) => (
                             <ClientCategoryCard
                                 key={category.category}
                                 category={category}
-                                type="spending"
+                                type="value"
+                                dictionary={dictionary}
+                            />
+                        ))}
+                    </div>
+                </TabsContent>
+
+                <TabsContent value="activity" className="mt-6">
+                    <div className="grid gap-3 sm:gap-4 grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        {sortedActivityCategories.map((category) => (
+                            <ClientCategoryCard
+                                key={category.category}
+                                category={category}
+                                type="activity"
                                 dictionary={dictionary}
                             />
                         ))}

@@ -7,8 +7,8 @@ import {
     deleteUser as deleteUserService,
     updateUser as updateUserService,
 } from '@repo/data-services/src/services/userService';
+import { getCurrentUser } from '@repo/data-services/src/services/authService';
 import { z } from 'zod';
-import type { UserRole } from '@repo/database';
 import { hasPermission } from '@repo/auth/server-permissions';
 
 // Esquema para la actualización del perfil
@@ -44,6 +44,11 @@ export async function updateProfile(userId: string, formData: FormData) {
             return { success: false, message: 'No tienes permisos para editar el perfil.' };
         }
 
+        const currentUser = await getCurrentUser();
+        if (!currentUser || !currentUser.tenantId) {
+            return { success: false, message: 'Usuario no autenticado o sin tenantId' };
+        }
+
         const data = Object.fromEntries(formData.entries());
         const validated = profileSchema.safeParse(data);
 
@@ -51,7 +56,7 @@ export async function updateProfile(userId: string, formData: FormData) {
             return { success: false, message: validated.error.errors[0].message };
         }
 
-        await updateUserService(userId, { ...validated.data, password: '' });
+        await updateUserService(userId, { ...validated.data, password: '', tenantId: currentUser.tenantId });
 
         revalidatePath('/admin/account');
         return { success: true, message: 'Perfil actualizado exitosamente' };
@@ -114,7 +119,12 @@ export async function createUser(formData: FormData) {
             return { success: false, message: "La contraseña es requerida para nuevos usuarios." };
         }
 
-        const result = await createUserService({ ...validated.data, role: validated.data.role as UserRole, password: validated.data.password });
+        const currentUser = await getCurrentUser();
+        if (!currentUser || !currentUser.tenantId) {
+            return { success: false, message: 'Usuario no autenticado o sin tenantId' };
+        }
+
+        const result = await createUserService({ ...validated.data, role: validated.data.role as string, password: validated.data.password, tenantId: currentUser.tenantId });
 
         if (!result.success) {
             return { success: false, message: result.message || 'Error al crear el usuario' };
@@ -148,7 +158,12 @@ export async function updateUser(userId: string, formData: FormData) {
             return { success: false, message: validated.error.errors[0].message };
         }
 
-        await updateUserService(userId, { ...validated.data, role: validated.data.role as UserRole, password: validated.data.password || '' });
+        const currentUser = await getCurrentUser();
+        if (!currentUser || !currentUser.tenantId) {
+            return { success: false, message: 'Usuario no autenticado o sin tenantId' };
+        }
+
+        await updateUserService(userId, { ...validated.data, role: validated.data.role as string, password: validated.data.password || '', tenantId: currentUser.tenantId });
 
         revalidatePath('/admin/account');
         return { success: true, message: 'Usuario actualizado exitosamente' };

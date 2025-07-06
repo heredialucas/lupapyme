@@ -44,14 +44,13 @@ export async function signIn({ email, password }: { email: string; password: str
             return { success: false, message: 'Usuario no encontrado' };
         }
 
-
-
         // Create session token (simple JSON string, no encryption)
         const token = JSON.stringify({
             id: user.id,
             email: user.email,
             role: user.role.toLowerCase(), // Asegurar que el rol está en minúsculas
             permissions: Array.isArray(user.permissions) ? user.permissions : [],
+            tenantId: user.tenantId,
         });
 
         // Establecer cookie
@@ -64,6 +63,7 @@ export async function signIn({ email, password }: { email: string; password: str
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                tenantId: user.tenantId,
             }
         };
     } catch (error) {
@@ -80,16 +80,20 @@ export async function signUp(data: {
     lastName: string;
     email: string;
     password: string;
+    tenantId: string;
 }) {
     try {
+        console.log('[signUp] Payload recibido:', data);
         // Create new user
         const result = await createUser({
             name: data.name,
             lastName: data.lastName,
             email: data.email,
             password: data.password,
+            tenantId: data.tenantId,
             role: 'admin', // Primeros usuarios como admin para setup inicial
         });
+        console.log('[signUp] Resultado de createUser:', result);
 
         // Check if user creation failed
         if (!result.success || !result.user) {
@@ -109,10 +113,11 @@ export async function signUp(data: {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                tenantId: user.tenantId,
             }
         };
     } catch (error) {
-        console.error('Error al crear cuenta:', error);
+        console.error('[signUp] Error al crear cuenta:', error);
         return {
             success: false,
             message: 'Error inesperado al crear la cuenta',
@@ -146,29 +151,29 @@ export async function getCurrentUser() {
         const tokenCookie = cookieStore.get('auth-token');
 
         if (!tokenCookie || !tokenCookie.value || tokenCookie.value.trim() === '') {
+            console.log('No hay cookie de auth-token');
             return null;
         }
 
         try {
             const token = JSON.parse(tokenCookie.value);
+            console.log('Token parseado:', token);
 
             if (!token || !token.id) {
+                console.log('Token no tiene id válido');
                 return null;
             }
 
-            const user = await getUserById(token.id);
-
-            if (!user) {
-                return null;
-            }
-
+            // Usar directamente la información del token (evita consulta a BD)
+            console.log('Usando información del token directamente');
             return {
-                id: user.id,
-                name: user.name,
-                lastName: user.lastName,
-                email: user.email,
-                role: user.role,
-                permissions: Array.isArray(user.permissions) ? user.permissions : [],
+                id: token.id,
+                name: token.name || 'Usuario',
+                lastName: token.lastName || '',
+                email: token.email,
+                role: token.role,
+                permissions: Array.isArray(token.permissions) ? token.permissions : [],
+                tenantId: token.tenantId,
             };
         } catch (parseError) {
             console.error('Error al analizar el token:', parseError);

@@ -1,54 +1,66 @@
-import { getCustomerInsights } from '@repo/data-services/src/services/barfer/analytics/getCustomerInsights';
-import { getPurchaseFrequency } from '@repo/data-services/src/services/barfer/analytics/getPurchaseFrequency';
-import { FrequencyAnalyticsClient } from './FrequencyAnalyticsClient';
+"use client";
+import { useState } from 'react';
 
-interface FrequencyAnalyticsTabProps {
-    dateFilter: {
-        from: Date;
-        to: Date;
-    };
-    compareFilter?: {
-        from: Date;
-        to: Date;
-    };
+interface CampoDef {
+    nombre: string;
+    tipo: string;
 }
 
-export async function FrequencyAnalyticsTab({ dateFilter, compareFilter }: FrequencyAnalyticsTabProps) {
-    try {
-        const [customerInsights, purchaseFrequency] = await Promise.all([
-            getCustomerInsights(dateFilter.from, dateFilter.to),
-            getPurchaseFrequency(dateFilter.from, dateFilter.to)
-        ]);
+interface Registro {
+    id: string;
+    data: Record<string, any>;
+}
 
-        // Datos del período de comparación (si está habilitado)
-        let compareCustomerInsights;
-        let comparePurchaseFrequency;
-        if (compareFilter) {
-            const [compInsights, compFrequency] = await Promise.all([
-                getCustomerInsights(compareFilter.from, compareFilter.to),
-                getPurchaseFrequency(compareFilter.from, compareFilter.to)
-            ]);
-            compareCustomerInsights = compInsights;
-            comparePurchaseFrequency = compFrequency;
-        }
+interface FrequencyAnalyticsTabProps {
+    modelDefinition: {
+        tipo: string;
+        campos: CampoDef[];
+    };
+    registros: Registro[];
+}
 
-        return (
-            <FrequencyAnalyticsClient
-                customerInsights={customerInsights}
-                purchaseFrequency={purchaseFrequency}
-                compareCustomerInsights={compareCustomerInsights}
-                comparePurchaseFrequency={comparePurchaseFrequency}
-                isComparing={!!compareFilter}
-                dateFilter={dateFilter}
-                compareFilter={compareFilter}
-            />
-        );
-    } catch (error) {
-        console.error('Error loading frequency analytics:', error);
-        return (
-            <div className="p-4 border rounded-lg">
-                <p className="text-sm text-red-600">Error al cargar datos de métricas</p>
-            </div>
-        );
-    }
+export function FrequencyAnalyticsTab({ modelDefinition, registros }: FrequencyAnalyticsTabProps) {
+    const [campoSeleccionado, setCampoSeleccionado] = useState<string>(modelDefinition.campos[0]?.nombre || '');
+
+    // Agrupar registros por el campo seleccionado
+    const agrupados = registros.reduce((acc: Record<string, number>, reg) => {
+        const valor = reg.data[campoSeleccionado] ?? 'Sin valor';
+        acc[valor] = acc[valor] ? acc[valor] + 1 : 1;
+        return acc;
+    }, {});
+
+    return (
+        <div className="p-4 border rounded-lg">
+            <h2 className="text-lg font-bold mb-4">Analítica dinámica de frecuencia</h2>
+            <label className="block mb-2">Selecciona campo para analizar:</label>
+            <select
+                className="mb-4 p-2 border rounded"
+                value={campoSeleccionado}
+                onChange={e => setCampoSeleccionado(e.target.value)}
+            >
+                {modelDefinition.campos.map(campo => (
+                    <option key={campo.nombre} value={campo.nombre}>
+                        {campo.nombre}
+                    </option>
+                ))}
+            </select>
+            <table className="min-w-full border mt-4">
+                <thead>
+                    <tr>
+                        <th className="border px-4 py-2">Valor</th>
+                        <th className="border px-4 py-2">Cantidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {Object.entries(agrupados).map(([valor, cantidad]) => (
+                        <tr key={valor}>
+                            <td className="border px-4 py-2">{valor}</td>
+                            <td className="border px-4 py-2">{cantidad}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+            {/* Aquí puedes agregar un gráfico dinámico usando los datos agrupados */}
+        </div>
+    );
 } 

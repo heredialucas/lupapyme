@@ -7,18 +7,27 @@ import { Badge } from '@repo/design-system/components/ui/badge';
 import { ArrowLeft, Mail, Send, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Dictionary } from '@repo/internationalization';
-import type { ClientForTable } from '@repo/data-services/src/services/barfer/analytics/getClientsByCategory';
-import type { EmailTemplateData } from '@repo/data-services';
 import { ClientsTable } from './ClientsTable';
 import { TemplateSelectorClient } from './TemplateSelectorClient';
 import { sendBulkEmailAction } from '../actions';
+
+// Definir tipo local dinámico para los clientes
+interface Client {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    lastOrder: string;
+    totalSpent: number;
+    // ...otros campos que uses
+}
 
 interface EmailClientsViewClientProps {
     category?: string;
     type?: string;
     dictionary: Dictionary;
-    clients: ClientForTable[];
-    emailTemplates: EmailTemplateData[];
+    clients: Client[];
+    emailTemplates: any[]; // O usa el tipo correcto si es global
 }
 
 // Función para traducir categorías de comportamiento

@@ -11,60 +11,56 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  admin
-  user
-}
-
 model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
+  id          String   @id @default(cuid())
   name        String
   lastName    String
-  role        UserRole @default(user)
+  email       String   @unique
   password    String
-  permissions Json     @default("[]")
+  role        String   @default("user")
+  permissions String[] @default([])
+  tenantId    String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relaciones
-  emailTemplates    EmailTemplate[]
-  whatsappTemplates WhatsAppTemplate[]
+  @@index([tenantId])
+  @@index([email])
 }
 
-model EmailTemplate {
-  id          String  @id @default(uuid())
-  name        String // Nombre del template para identificarlo
-  subject     String // Asunto del email
-  content     String // Contenido del email
-  description String? // Descripción opcional del template
-  isDefault   Boolean @default(false) // Si es un template por defecto del sistema
-
-  // Metadatos
-  createdBy String
+model ModelDefinition {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tipo      String
+  campos    Json
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
-  // Relaciones
-  user User @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  @@unique([tenantId, tipo])
+  @@index([tenantId])
+}
 
-  @@map("email_templates")
+model Registro {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tipo      String
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([tenantId])
+  @@index([tipo])
+  @@index([createdAt])
 }
 
 model WhatsAppTemplate {
-  id          String  @id @default(uuid())
-  name        String // Nombre del template para identificarlo
-  content     String // Contenido del mensaje de WhatsApp
-  description String? // Descripción opcional del template
-  isDefault   Boolean @default(false) // Si es un template por defecto del sistema
+  id          String   @id @default(cuid())
+  name        String
+  content     String
+  isDefault   Boolean  @default(false)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  // Metadatos
-  createdBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relaciones
-  user User @relation(fields: [createdBy], references: [id], onDelete: Cascade)
-
-  @@map("whatsapp_templates")
+  @@index([createdBy])
+  @@index([isDefault])
 }

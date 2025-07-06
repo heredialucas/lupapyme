@@ -10,6 +10,7 @@ export interface UserData {
     permissions: string[]; // Array de permisos específicos
     createdAt: Date;
     updatedAt: Date;
+    tenantId: string;
 }
 
 /**
@@ -20,6 +21,7 @@ export interface UserFormData {
     lastName: string;
     email: string;
     password: string;
+    tenantId: string;
 }
 
 /**

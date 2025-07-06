@@ -1,64 +1,67 @@
-import { getPaymentMethodStats, getPaymentsByTimePeriod } from '@repo/data-services/src/services/barfer';
-import { PaymentsAnalyticsClient } from './PaymentsAnalyticsClient';
+"use client";
+import { useState } from 'react';
 
-interface PaymentsAnalyticsTabProps {
-    dateFilter: {
-        from: Date;
-        to: Date;
-    };
-    compareFilter?: {
-        from: Date;
-        to: Date;
-    };
+interface CampoDef {
+    nombre: string;
+    tipo: string;
 }
 
-export async function PaymentsAnalyticsTab({ dateFilter, compareFilter }: PaymentsAnalyticsTabProps) {
-    try {
-        // Determinar el tipo de período basado en el rango de fechas
-        const diffTime = Math.abs(dateFilter.to.getTime() - dateFilter.from.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+interface Registro {
+    id: string;
+    data: Record<string, any>;
+}
 
-        let periodType: 'daily' | 'weekly' | 'monthly' = 'daily';
-        if (diffDays <= 31) periodType = 'daily';      // Hasta un mes: por días
-        else if (diffDays <= 90) periodType = 'weekly'; // Hasta 3 meses: por semanas
-        else periodType = 'monthly';                     // Más de 3 meses: por meses
+interface PaymentsAnalyticsTabProps {
+    modelDefinition: {
+        tipo: string;
+        campos: CampoDef[];
+    };
+    registros: Registro[];
+}
 
-        // Obtener datos principales
-        const [paymentStats, rawProgressData] = await Promise.all([
-            getPaymentMethodStats(dateFilter.from, dateFilter.to),
-            getPaymentsByTimePeriod(dateFilter.from, dateFilter.to, periodType)
-        ]);
-        const progressData = rawProgressData.map(d => ({ ...d, otherOrders: 0, otherRevenue: 0 }));
+export function PaymentsAnalyticsTab({ modelDefinition, registros }: PaymentsAnalyticsTabProps) {
+    const campoPago = modelDefinition.campos.find(c => c.nombre.toLowerCase().includes('pago') || c.nombre.toLowerCase().includes('payment'))?.nombre || modelDefinition.campos[0]?.nombre || '';
+    const [campoSeleccionado, setCampoSeleccionado] = useState<string>(campoPago);
 
-        // Datos del período de comparación (si está habilitado)
-        let comparePaymentStats;
-        let compareProgressData;
-        if (compareFilter) {
-            const [rawCompareStats, rawCompareProgress] = await Promise.all([
-                getPaymentMethodStats(compareFilter.from, compareFilter.to),
-                getPaymentsByTimePeriod(compareFilter.from, compareFilter.to, periodType)
-            ]);
-            comparePaymentStats = rawCompareStats;
-            compareProgressData = rawCompareProgress.map(d => ({ ...d, otherOrders: 0, otherRevenue: 0 }));
-        }
+    // Agrupar registros por el campo seleccionado
+    const agrupados = registros.reduce((acc: Record<string, number>, reg) => {
+        const valor = reg.data[campoSeleccionado] ?? 'Sin valor';
+        acc[valor] = acc[valor] ? acc[valor] + 1 : 1;
+        return acc;
+    }, {});
 
-        return (
-            <PaymentsAnalyticsClient
-                paymentStats={paymentStats}
-                comparePaymentStats={comparePaymentStats}
-                progressData={progressData}
-                compareProgressData={compareProgressData}
-                isComparing={!!compareFilter}
-                dateFilter={dateFilter}
-                compareFilter={compareFilter}
-            />
-        );
-    } catch (error) {
-        console.error('Error loading payment analytics:', error);
-        return (
-            <div className="p-4 border rounded-lg">
-                <p className="text-sm text-red-600">Error al cargar datos de pagos</p>
-            </div>
-        );
-    }
+    return (
+        <div className="p-4 border rounded-lg">
+            <h2 className="text-lg font-bold mb-4">Analítica dinámica de pagos</h2>
+            <label className="block mb-2">Selecciona campo para analizar:</label>
+            <select
+                className="mb-4 p-2 border rounded"
+                value={campoSeleccionado}
+                onChange={e => setCampoSeleccionado(e.target.value)}
+            >
+                {modelDefinition.campos.map(campo => (
+                    <option key={campo.nombre} value={campo.nombre}>
+                        {campo.nombre}
+                    </option>
+                ))}
+            </select>
+            <table className="min-w-full border mt-4">
+                <thead>
+                    <tr>
+                        <th className="border px-4 py-2">Valor</th>
+                        <th className="border px-4 py-2">Cantidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {Object.entries(agrupados).map(([valor, cantidad]) => (
+                        <tr key={valor}>
+                            <td className="border px-4 py-2">{valor}</td>
+                            <td className="border px-4 py-2">{cantidad}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+            {/* Aquí puedes agregar un gráfico dinámico usando los datos agrupados */}
+        </div>
+    );
 } 

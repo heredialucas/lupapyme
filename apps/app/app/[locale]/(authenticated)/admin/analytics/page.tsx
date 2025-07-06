@@ -18,6 +18,25 @@ interface AnalyticsPageProps {
     }>;
 }
 
+// MOCK: Definición de modelo y registros dinámicos para analíticas
+const modelDefinition = {
+    tipo: 'ordenes',
+    campos: [
+        { nombre: 'categoria', tipo: 'string' },
+        { nombre: 'cliente', tipo: 'string' },
+        { nombre: 'total', tipo: 'number' },
+        { nombre: 'fecha', tipo: 'date' },
+        { nombre: 'estado', tipo: 'string' },
+    ],
+};
+
+const registros = [
+    { id: '1', data: { categoria: 'Bebidas', cliente: 'Juan Pérez', total: 1200, fecha: '2024-06-01', estado: 'pendiente' } },
+    { id: '2', data: { categoria: 'Comidas', cliente: 'Ana López', total: 950, fecha: '2024-06-02', estado: 'entregado' } },
+    { id: '3', data: { categoria: 'Bebidas', cliente: 'Carlos Ruiz', total: 800, fecha: '2024-06-03', estado: 'pendiente' } },
+    { id: '4', data: { categoria: 'Comidas', cliente: 'Laura Gómez', total: 1100, fecha: '2024-06-04', estado: 'entregado' } },
+];
+
 export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps) {
     // Await searchParams ya que es una promesa en Next.js 15
     const params = await searchParams;
@@ -68,12 +87,12 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
             <AnalyticsDateFilter />
 
             <AnalyticsTabsWrapper
-                dailyTab={<DailyAnalyticsTab dateFilter={dateFilter} compareFilter={compareFilter} />}
-                monthlyTab={<MonthlyAnalyticsTab dateFilter={dateFilter} compareFilter={compareFilter} />}
-                productsTab={<ProductsAnalyticsTab dateFilter={dateFilter} compareFilter={compareFilter} />}
-                categoriesTab={<CategoriesAnalyticsTab dateFilter={dateFilter} compareFilter={compareFilter} />}
-                paymentsTab={<PaymentsAnalyticsTab dateFilter={dateFilter} compareFilter={compareFilter} />}
-                frequencyTab={<FrequencyAnalyticsTab dateFilter={dateFilter} compareFilter={compareFilter} />}
+                dailyTab={<DailyAnalyticsTab modelDefinition={modelDefinition} registros={registros} />}
+                monthlyTab={<MonthlyAnalyticsTab modelDefinition={modelDefinition} registros={registros} />}
+                productsTab={<ProductsAnalyticsTab modelDefinition={modelDefinition} registros={registros} />}
+                categoriesTab={<CategoriesAnalyticsTab modelDefinition={modelDefinition} registros={registros} />}
+                paymentsTab={<PaymentsAnalyticsTab modelDefinition={modelDefinition} registros={registros} />}
+                frequencyTab={<FrequencyAnalyticsTab modelDefinition={modelDefinition} registros={registros} />}
             />
         </div>
     );

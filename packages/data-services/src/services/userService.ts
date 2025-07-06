@@ -3,13 +3,12 @@
 import { revalidatePath } from 'next/cache';
 import { UserData, UserFormData } from '../types/user';
 import { database } from '@repo/database';
-import { UserRole } from '@repo/database';
 import bcrypt from 'bcryptjs';
 
 /**
  * Crear un nuevo usuario
  */
-export async function createUser(data: UserFormData & { role: UserRole; permissions?: string[] }) {
+export async function createUser(data: UserFormData & { role: string; permissions?: string[] }) {
     try {
         // Verificar si ya existe un usuario con ese email
         const existingUser = await database.user.findUnique({
@@ -40,6 +39,7 @@ export async function createUser(data: UserFormData & { role: UserRole; permissi
                 password: hashedPassword,
                 role: data.role,
                 permissions: Array.from(permissionsWithDefault),
+                tenantId: data.tenantId,
             },
         });
 
@@ -55,6 +55,7 @@ export async function createUser(data: UserFormData & { role: UserRole; permissi
                 permissions: Array.isArray(user.permissions) ? user.permissions : [],
                 createdAt: user.createdAt,
                 updatedAt: user.updatedAt,
+                tenantId: user.tenantId,
             }
         };
     } catch (error) {
@@ -90,6 +91,7 @@ export async function getUserById(userId: string) {
             permissions: Array.isArray(user.permissions) ? user.permissions : [],
             createdAt: user.createdAt,
             updatedAt: user.updatedAt,
+            tenantId: user.tenantId,
         };
     } catch (error) {
         console.error('Error al obtener usuario por ID:', error);
@@ -130,7 +132,7 @@ export async function getAllUsers(excludeUserId?: string) {
 /**
  * Actualizar un usuario existente
  */
-export async function updateUser(userId: string, data: UserFormData & { role?: UserRole; permissions?: string[] }) {
+export async function updateUser(userId: string, data: UserFormData & { role?: string; permissions?: string[] }) {
     "use server";
     try {
         const updateData: any = {

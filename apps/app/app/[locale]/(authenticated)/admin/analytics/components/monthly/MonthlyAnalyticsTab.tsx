@@ -1,50 +1,68 @@
-import { getOrdersByMonth, getDeliveryTypeStatsByMonth } from '@repo/data-services/src/services/barfer';
-import { MonthlyAnalyticsClient } from './MonthlyAnalyticsClient';
+"use client";
+import { useState } from 'react';
 
-interface MonthlyAnalyticsTabProps {
-    dateFilter: {
-        from: Date;
-        to: Date;
-    };
-    compareFilter?: {
-        from: Date;
-        to: Date;
-    };
+interface CampoDef {
+    nombre: string;
+    tipo: string;
 }
 
-export async function MonthlyAnalyticsTab({ dateFilter, compareFilter }: MonthlyAnalyticsTabProps) {
-    try {
-        const [allOrdersData, deliveryStats] = await Promise.all([
-            getOrdersByMonth(dateFilter.from, dateFilter.to),
-            getDeliveryTypeStatsByMonth(dateFilter.from, dateFilter.to)
-        ]);
+interface Registro {
+    id: string;
+    data: Record<string, any>;
+}
 
-        let compareAllOrdersData;
-        let compareDeliveryStats;
-        if (compareFilter) {
-            [compareAllOrdersData, compareDeliveryStats] = await Promise.all([
-                getOrdersByMonth(compareFilter.from, compareFilter.to),
-                getDeliveryTypeStatsByMonth(compareFilter.from, compareFilter.to)
-            ]);
-        }
+interface MonthlyAnalyticsTabProps {
+    modelDefinition: {
+        tipo: string;
+        campos: CampoDef[];
+    };
+    registros: Registro[];
+}
 
-        return (
-            <MonthlyAnalyticsClient
-                allOrdersData={allOrdersData}
-                compareAllOrdersData={compareAllOrdersData}
-                deliveryStats={deliveryStats}
-                compareDeliveryStats={compareDeliveryStats}
-                isComparing={!!compareFilter}
-                dateFilter={dateFilter}
-                compareFilter={compareFilter}
-            />
-        );
-    } catch (error) {
-        console.error('Error loading monthly analytics:', error);
-        return (
-            <div className="p-4 border rounded-lg">
-                <p className="text-sm text-red-600">Error al cargar datos mensuales</p>
-            </div>
-        );
-    }
+export function MonthlyAnalyticsTab({ modelDefinition, registros }: MonthlyAnalyticsTabProps) {
+    // Buscar un campo que sea mes/month, si existe, si no usar el primero
+    const campoMes = modelDefinition.campos.find(c => c.nombre.toLowerCase().includes('mes') || c.nombre.toLowerCase().includes('month'))?.nombre || modelDefinition.campos[0]?.nombre || '';
+    const [campoSeleccionado, setCampoSeleccionado] = useState<string>(campoMes);
+
+    // Agrupar registros por el campo seleccionado
+    const agrupados = registros.reduce((acc: Record<string, number>, reg) => {
+        const valor = reg.data[campoSeleccionado] ?? 'Sin valor';
+        acc[valor] = acc[valor] ? acc[valor] + 1 : 1;
+        return acc;
+    }, {});
+
+    return (
+        <div className="p-4 border rounded-lg">
+            <h2 className="text-lg font-bold mb-4">Analítica dinámica mensual</h2>
+            <label className="block mb-2">Selecciona campo para analizar:</label>
+            <select
+                className="mb-4 p-2 border rounded"
+                value={campoSeleccionado}
+                onChange={e => setCampoSeleccionado(e.target.value)}
+            >
+                {modelDefinition.campos.map(campo => (
+                    <option key={campo.nombre} value={campo.nombre}>
+                        {campo.nombre}
+                    </option>
+                ))}
+            </select>
+            <table className="min-w-full border mt-4">
+                <thead>
+                    <tr>
+                        <th className="border px-4 py-2">Valor</th>
+                        <th className="border px-4 py-2">Cantidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {Object.entries(agrupados).map(([valor, cantidad]) => (
+                        <tr key={valor}>
+                            <td className="border px-4 py-2">{valor}</td>
+                            <td className="border px-4 py-2">{cantidad}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+            {/* Aquí puedes agregar un gráfico dinámico usando los datos agrupados */}
+        </div>
+    );
 } 

@@ -5,93 +5,76 @@ import { Badge } from '@repo/design-system/components/ui/badge';
 import { Button } from '@repo/design-system/components/ui/button';
 import { Users, TrendingUp, Clock, Mail, MessageCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import type { ClientCategoryStats, ClientBehaviorCategory, ClientSpendingCategory } from '@repo/data-services';
 import type { Dictionary } from '@repo/internationalization';
+import type { ClientCategory } from '@repo/data-services/src/services/lupapyme/clientAnalyticsService';
 
 interface ClientCategoryCardProps {
-    category: ClientCategoryStats;
-    type: 'behavior' | 'spending';
+    category: ClientCategory;
+    type: 'frequency' | 'value' | 'activity';
     dictionary: Dictionary;
 }
 
-const getCategoryColor = (category: ClientBehaviorCategory | ClientSpendingCategory, type: 'behavior' | 'spending'): string => {
-    if (type === 'behavior') {
-        const behaviorColors: Record<ClientBehaviorCategory, string> = {
+const getCategoryColor = (category: string, type: 'frequency' | 'value' | 'activity'): string => {
+    if (type === 'frequency') {
+        const frequencyColors: Record<string, string> = {
             'new': 'bg-blue-100 text-blue-800 border-blue-200',
-            'possible-inactive': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+            'regular': 'bg-green-100 text-green-800 border-green-200',
+            'loyal': 'bg-purple-100 text-purple-800 border-purple-200'
+        };
+        return frequencyColors[category] || 'bg-gray-100 text-gray-800 border-gray-200';
+    } else if (type === 'value') {
+        const valueColors: Record<string, string> = {
+            'low': 'bg-gray-100 text-gray-800 border-gray-200',
+            'medium': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+            'high': 'bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-900 border-yellow-300'
+        };
+        return valueColors[category] || 'bg-gray-100 text-gray-800 border-gray-200';
+    } else {
+        const activityColors: Record<string, string> = {
             'active': 'bg-emerald-100 text-emerald-800 border-emerald-200',
-            'recovered': 'bg-purple-100 text-purple-800 border-purple-200',
-            'lost': 'bg-red-100 text-red-800 border-red-200',
-            'tracking': 'bg-indigo-100 text-indigo-800 border-indigo-200'
+            'inactive': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+            'lost': 'bg-red-100 text-red-800 border-red-200'
         };
-        return behaviorColors[category as ClientBehaviorCategory];
-    } else {
-        const spendingColors: Record<ClientSpendingCategory, string> = {
-            'premium': 'bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-900 border-yellow-300',
-            'standard': 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-900 border-blue-300',
-            'basic': 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-900 border-gray-300'
-        };
-        return spendingColors[category as ClientSpendingCategory];
+        return activityColors[category] || 'bg-gray-100 text-gray-800 border-gray-200';
     }
 };
 
-const getCategoryIcon = (category: ClientBehaviorCategory | ClientSpendingCategory, type: 'behavior' | 'spending') => {
-    if (type === 'behavior') {
-        const icons: Record<ClientBehaviorCategory, React.ReactNode> = {
+const getCategoryIcon = (category: string, type: 'frequency' | 'value' | 'activity') => {
+    if (type === 'frequency') {
+        const icons: Record<string, React.ReactNode> = {
             'new': <Users className="h-4 w-4" />,
-            'possible-inactive': <Clock className="h-4 w-4" />,
-            'active': <TrendingUp className="h-4 w-4" />,
-            'recovered': <TrendingUp className="h-4 w-4" />,
-            'lost': <Users className="h-4 w-4" />,
-            'tracking': <Clock className="h-4 w-4" />
+            'regular': <TrendingUp className="h-4 w-4" />,
+            'loyal': <TrendingUp className="h-4 w-4" />
         };
-        return icons[category as ClientBehaviorCategory];
-    } else {
+        return icons[category] || <Users className="h-4 w-4" />;
+    } else if (type === 'value') {
         return <TrendingUp className="h-4 w-4" />;
+    } else {
+        const icons: Record<string, React.ReactNode> = {
+            'active': <TrendingUp className="h-4 w-4" />,
+            'inactive': <Clock className="h-4 w-4" />,
+            'lost': <Users className="h-4 w-4" />
+        };
+        return icons[category] || <Users className="h-4 w-4" />;
     }
 };
 
-const getCategoryTitle = (category: ClientBehaviorCategory | ClientSpendingCategory, dictionary: Dictionary): string => {
-    const categoriesDict = dictionary.app.admin?.clients?.categories || {};
+const getCategoryTitle = (category: string, type: 'frequency' | 'value' | 'activity', dictionary: Dictionary): string => {
     const titles: Record<string, string> = {
-        'new': categoriesDict.new || 'Cliente Nuevo',
-        'possible-active': categoriesDict.possibleActive || 'Posible Activo',
-        'possible-inactive': categoriesDict.possibleInactive || 'Posible Inactivo',
-        'active': categoriesDict.active || 'Cliente Activo',
-        'inactive': categoriesDict.inactive || 'Cliente Inactivo',
-        'recovered': categoriesDict.recovered || 'Cliente Recuperado',
-        'lost': categoriesDict.lost || 'Cliente Perdido',
-        'tracking': categoriesDict.tracking || 'En Seguimiento',
-        'premium': categoriesDict.premium || 'Premium (A)',
-        'standard': categoriesDict.standard || 'Estándar (B)',
-        'basic': categoriesDict.basic || 'Básico (C)'
+        // Frecuencia
+        'new': 'Cliente Nuevo',
+        'regular': 'Cliente Regular',
+        'loyal': 'Cliente Leal',
+        // Valor
+        'low': 'Valor Bajo',
+        'medium': 'Valor Medio',
+        'high': 'Valor Alto',
+        // Actividad
+        'active': 'Cliente Activo',
+        'inactive': 'Cliente Inactivo',
+        'lost': 'Cliente Perdido'
     };
     return titles[category] || category;
-};
-
-const getCategoryDescription = (category: ClientBehaviorCategory | ClientSpendingCategory, type: 'behavior' | 'spending'): string => {
-    const descriptions: Record<string, string> = {
-        'new': 'Cliente con 1 sola compra, realizada en la última semana.',
-        'tracking': 'Cliente con 1 sola compra, realizada entre 8 y 30 días.',
-        'active': 'Cliente con al menos una compra en los últimos 90 días.',
-        'possible-inactive': 'Última compra entre 90 y 120 días.',
-        'recovered': 'Volvió a comprar en los últimos 90 días después de +120 días de inactividad.',
-        'lost': 'No ha comprado en más de 120 días.',
-        'premium': 'Ha comprado más de 15 kg en el último mes.',
-        'standard': 'Ha comprado entre 5 y 15 kg en el último mes.',
-        'basic': 'Ha comprado menos de 5 kg en el último mes.'
-    };
-
-    return descriptions[category] || '';
-};
-
-const getCategoryKgRange = (category: ClientSpendingCategory): string => {
-    const kgRanges: Record<ClientSpendingCategory, string> = {
-        'premium': '> 15 kg',
-        'standard': '5 - 15 kg',
-        'basic': '<= 5 kg'
-    };
-    return kgRanges[category] ?? '';
 };
 
 const formatCurrency = (amount: number): string => {
@@ -110,9 +93,7 @@ export function ClientCategoryCard({
     const router = useRouter();
     const colorClasses = getCategoryColor(category.category, type);
     const icon = getCategoryIcon(category.category, type);
-    const title = getCategoryTitle(category.category, dictionary);
-    const description = getCategoryDescription(category.category, type);
-    const kgRange = type === 'spending' ? getCategoryKgRange(category.category as ClientSpendingCategory) : null;
+    const title = getCategoryTitle(category.category, type, dictionary);
 
     const handleEmailClick = () => {
         router.push(`/admin/clients/email?category=${category.category}&type=${type}`);
@@ -141,7 +122,7 @@ export function ClientCategoryCard({
                     </div>
                 </div>
                 <CardDescription className="text-[11px] xs:text-xs sm:text-sm leading-relaxed">
-                    {description}
+                    {category.description}
                 </CardDescription>
             </CardHeader>
             <CardContent className="pt-0 flex-1 flex flex-col justify-between">
@@ -154,15 +135,7 @@ export function ClientCategoryCard({
                         <span className="text-muted-foreground flex-shrink-0">Promedio:</span>
                         <span className="font-medium text-right truncate min-w-0">{formatCurrency(category.averageSpending)}</span>
                     </div>
-                    {type === 'spending' && kgRange && (
-                        <div className="flex justify-between text-[10px] xs:text-xs sm:text-sm gap-2">
-                            <span className="text-muted-foreground flex-shrink-0">{dictionary.app.admin.clients.categories.kgRange ?? 'Rango KG'}:</span>
-                            <span className="font-medium text-right truncate min-w-0">{kgRange}</span>
-                        </div>
-                    )}
                 </div>
-
-                {/* Action buttons - always at bottom */}
                 <div className="flex gap-2 pt-4 border-t border-border mt-auto">
                     <Button
                         variant="outline"

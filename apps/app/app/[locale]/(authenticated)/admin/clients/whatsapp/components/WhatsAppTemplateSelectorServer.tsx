@@ -1,64 +1,38 @@
 'use server';
 
 import { WhatsAppTemplateSelectorClient } from './WhatsAppTemplateSelectorClient';
-import { createWhatsAppTemplate, deleteWhatsAppTemplate } from '@repo/data-services';
 import { getCurrentUser } from '@repo/auth/server';
 import { revalidatePath } from 'next/cache';
-import type { WhatsAppTemplateData } from '@repo/data-services';
+
+// Tipos temporales hasta que se implementen los nuevos servicios
+interface WhatsAppTemplateData {
+    id: string;
+    name: string;
+    content: string;
+    description?: string;
+    isDefault: boolean;
+    createdBy: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
 
 interface WhatsAppTemplateSelectorServerProps {
     templates: WhatsAppTemplateData[];
     onTemplateSelect: (content: string) => void;
-    selectedContent?: string | null;
     onTemplateCreated?: () => void;
 }
 
 export async function WhatsAppTemplateSelectorServer(props: WhatsAppTemplateSelectorServerProps) {
     const handleCreateTemplate = async (name: string, content: string, description?: string) => {
-
-        try {
-            const user = await getCurrentUser();
-            if (!user) {
-                return { success: false, error: 'Usuario no autenticado' };
-            }
-
-            await createWhatsAppTemplate(user.id, {
-                name,
-                content,
-                description,
-                isDefault: false
-            });
-
-            revalidatePath('/admin/clients/whatsapp');
-            return { success: true };
-        } catch (error) {
-            console.error('Error al crear template de WhatsApp:', error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : 'Error desconocido'
-            };
-        }
+        // TODO: Implementar con el nuevo modelo de base de datos
+        console.warn('createWhatsAppTemplate no implementado - migración en progreso');
+        return { success: false, error: 'Funcionalidad temporalmente no disponible durante la migración' };
     };
 
     const handleDeleteTemplate = async (templateId: string) => {
-
-        try {
-            const user = await getCurrentUser();
-            if (!user) {
-                return { success: false, error: 'Usuario no autenticado' };
-            }
-
-            await deleteWhatsAppTemplate(templateId, user.id);
-
-            revalidatePath('/admin/clients/whatsapp');
-            return { success: true };
-        } catch (error) {
-            console.error('Error al eliminar template de WhatsApp:', error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : 'Error desconocido'
-            };
-        }
+        // TODO: Implementar con el nuevo modelo de base de datos
+        console.warn('deleteWhatsAppTemplate no implementado - migración en progreso');
+        return { success: false, error: 'Funcionalidad temporalmente no disponible durante la migración' };
     };
 
     return (

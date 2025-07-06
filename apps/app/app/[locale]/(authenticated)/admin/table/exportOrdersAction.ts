@@ -1,97 +1,69 @@
 'use server';
 
-import { getAllOrders } from '@repo/data-services/src/services/barfer/getAllOrders';
 import * as XLSX from 'xlsx';
+import type { CampoDef } from '@repo/data-services/src/services/lupapyme/modelDefinitionService';
+
+interface Registro {
+    id: string;
+    data: Record<string, any>;
+}
 
 interface ExportParams {
-    search?: string;
-    from?: string;
-    to?: string;
-    orderType?: string;
+    modelDefinition: { tipo: string; campos: CampoDef[] };
+    registros: Registro[];
 }
 
 export async function exportOrdersAction({
-    search = '',
-    from = '',
-    to = '',
-    orderType = '',
+    modelDefinition,
+    registros,
 }: ExportParams): Promise<{ success: boolean; data?: string; error?: string }> {
     try {
-        const orders = await getAllOrders({
-            search: search || '',
-            sorting: [{ id: 'createdAt', desc: true }],
-            from: from || undefined,
-            to: to || undefined,
-            orderType: orderType && orderType !== 'all' ? orderType : undefined,
+        console.log('Export action called with:', {
+            registrosCount: registros.length,
+            camposCount: modelDefinition.campos.length,
+            campos: modelDefinition.campos.map(c => c.name)
         });
 
-        if (orders.length === 0) {
-            return { success: false, error: 'No se encontraron órdenes para exportar con los filtros seleccionados.' };
+        if (!registros.length) {
+            console.log('No registros to export');
+            return { success: false, error: 'No hay registros para exportar.' };
         }
 
-        // Mapeo y aplanamiento de los datos para el Excel
-        const dataToExport = orders.map(order => ({
-            'Fecha': new Date(order.createdAt).toLocaleDateString('es-AR'),
-            'Notas Propias': order.notesOwn || '',
-            'Cliente': `${order.user?.name || ''} ${order.user?.lastName || ''}`.trim(),
-            'Direccion': `${order.address?.address || ''}, ${order.address?.city || ''}`,
-            'Telefono': order.address?.phone || '',
-            'Email': order.user?.email || '',
-            'Notas Cliente': order.notes || '',
-            'Productos': order.items.map(item => `${item.name} x${(item.options[0] as any)?.quantity || 1}`).join('\n'),
-            'Total': order.total,
-            'Medio de Pago': order.paymentMethod || '',
-            'Estado': order.status,
-        }));
+        // Mapeo dinámico de los datos para el Excel
+        const dataToExport = registros.map((reg, index) => {
+            const row: Record<string, any> = {};
+            modelDefinition.campos.forEach(campo => {
+                const value = reg.data[campo.name];
+                row[campo.label] = value ?? '';
+
+                // Log para debug
+                if (index === 0) {
+                    console.log(`Field ${campo.name}:`, value);
+                }
+            });
+            return row;
+        });
+
+        console.log('Data to export (first row):', dataToExport[0]);
 
         // Crear el libro de trabajo y la hoja
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
 
-        // Ajustar el ancho de las columnas
-        const columnWidths = [
-            { wch: 12 }, // Fecha
-            { wch: 40 }, // Notas Propias
-            { wch: 30 }, // Cliente
-            { wch: 40 }, // Direccion
-            { wch: 15 }, // Telefono
-            { wch: 30 }, // Email
-            { wch: 40 }, // Notas Cliente
-            { wch: 60 }, // Productos
-            { wch: 12 }, // Total
-            { wch: 20 }, // Medio de Pago
-            { wch: 15 }, // Estado
-        ];
-        worksheet['!cols'] = columnWidths;
+        // Ajustar el ancho de las columnas (opcional)
+        worksheet['!cols'] = modelDefinition.campos.map(() => ({ wch: 20 }));
 
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Órdenes');
-
-        // Forzar alineación a la izquierda en las columnas 'Total' y 'Telefono'
-        const leftAlignCols = ['Total', 'Telefono'];
-        if (worksheet['!ref']) {
-            const range = XLSX.utils.decode_range(worksheet['!ref']);
-            for (let C = range.s.c; C <= range.e.c; ++C) {
-                const headerCell = worksheet[XLSX.utils.encode_col(C) + '1'];
-                const header = headerCell?.v;
-                if (typeof header === 'string' && leftAlignCols.includes(header)) {
-                    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-                        const cellAddress = XLSX.utils.encode_col(C) + (R + 1);
-                        if (!worksheet[cellAddress]) continue;
-                        if (!worksheet[cellAddress].s) worksheet[cellAddress].s = {};
-                        worksheet[cellAddress].s.alignment = { horizontal: 'left' };
-                    }
-                }
-            }
-        }
+        XLSX.utils.book_append_sheet(workbook, worksheet, modelDefinition.tipo);
 
         // Generar el buffer del archivo y convertirlo a base64 para serialización
         const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
         const base64Data = buffer.toString('base64');
 
-        return { success: true, data: base64Data };
+        console.log('Excel file generated successfully, size:', buffer.length, 'bytes');
 
+        return { success: true, data: base64Data };
     } catch (error) {
-        console.error('Error exporting orders:', error);
+        console.error('Error exporting registros:', error);
         return { success: false, error: 'Ocurrió un error al generar el archivo Excel.' };
     }
 } 

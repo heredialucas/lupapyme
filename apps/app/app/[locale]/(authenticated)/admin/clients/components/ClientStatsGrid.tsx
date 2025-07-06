@@ -2,8 +2,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/design-system/components/ui/card';
 import { Users, DollarSign, Repeat, ShoppingCart } from 'lucide-react';
-import type { ClientAnalytics } from '@repo/data-services';
 import type { Dictionary } from '@repo/internationalization';
+import type { ClientAnalytics } from '@repo/data-services/src/services/lupapyme/clientAnalyticsService';
 
 interface ClientStatsGridProps {
     analytics: ClientAnalytics;
